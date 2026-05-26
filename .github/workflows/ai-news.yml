@@ -1,0 +1,63 @@
+name: AI News Daily
+
+on:
+  schedule:
+    # 每天北京时间 9:00 运行（UTC 1:00）
+    - cron: "0 1 * * *"
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  fetch-ai-news:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Fetch AI News
+        id: news
+        run: |
+          pip install feedparser
+          python fetch_news.py
+
+      - name: Show News Output
+        run: |
+          echo "📰 Today's AI News Summary:"
+          cat news.json | python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for item in data[:10]:
+            print(f\"• {item['title']}\")
+            print(f\"  {item['link']}\")
+            print()
+          "
+
+      # 可选：推送到飞书/钉钉/企业微信 webhook
+      # 需要设置 secrets.WEBHOOK_URL
+      - name: Send Webhook (Optional)
+        if: env.WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+        run: |
+          python -c "
+          import json, urllib.request
+          with open('news.json') as f:
+              news = json.load(f)
+          # 格式化为 webhook 消息
+          text = '🤖 AI News Daily\n\n'
+          for item in news[:10]:
+              text += f\"• {item['title']}\n  {item['link']}\n\n\"
+          payload = {'text': text}
+          req = urllib.request.Request(
+              '${{ secrets.WEBHOOK_URL }}',
+              data=json.dumps(payload).encode(),
+              headers={'Content-Type': 'application/json'}
+          )
+          urllib.request.urlopen(req)
+          "
