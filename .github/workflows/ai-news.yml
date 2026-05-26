@@ -44,6 +44,7 @@ jobs:
         if: env.WEBHOOK_URL != ''
         env:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
         run: |
           python -c "
           import json, urllib.request
